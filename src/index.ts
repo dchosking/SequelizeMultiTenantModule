@@ -1,0 +1,1 @@
+﻿export {SequelizeMultiTenantModule} from './sequelize-multi-tenant.module';
