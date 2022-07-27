@@ -135,29 +135,25 @@ export class SequelizeMultiTenantModule implements OnApplicationShutdown {
     ): Promise<Sequelize> {
         return lastValueFrom(
             defer(async () => {
-                const connectionToken = options.name || DEFAULT_CONNECTION_NAME;
-                const existingConnection = SequelizeMultiTenantModule.connections.get(connectionToken);
-                if(existingConnection){
-                    try{
+                const connectionKey = options?.database || DEFAULT_CONNECTION_NAME;
+                const existingConnection = SequelizeMultiTenantModule.connections.get(connectionKey);
+                if (existingConnection) {
+                    try {
                         await existingConnection.authenticate();
-                        return existingConnection;    
-                    }catch (e) {
-                        SequelizeMultiTenantModule.connections.delete(connectionToken);
-                        await existingConnection.close();                        
-                    }                 
-                }                
-                const sequelize = options?.uri
-                    ? new Sequelize(options.uri, options)
-                    : new Sequelize(options);
+                        return existingConnection;
+                    } catch (e) {
+                        SequelizeMultiTenantModule.connections.delete(connectionKey);
+                        await existingConnection.close();
+                    }
+                }
+                const sequelize = options?.uri ? new Sequelize(options.uri, options) : new Sequelize(options);
 
                 if (!options.autoLoadModels) {
                     return sequelize;
                 }
 
-                
-                const models = EntitiesMetadataStorage.getEntitiesByConnection(
-                    connectionToken,
-                );
+                const connectionToken = options.name || DEFAULT_CONNECTION_NAME;
+                const models = EntitiesMetadataStorage.getEntitiesByConnection(connectionToken);
                 sequelize.addModels(models as any);
 
                 await sequelize.authenticate();
@@ -165,7 +161,7 @@ export class SequelizeMultiTenantModule implements OnApplicationShutdown {
                 if (typeof options.synchronize === 'undefined' || options.synchronize) {
                     await sequelize.sync(options.sync);
                 }
-                SequelizeMultiTenantModule.connections.set(connectionToken, sequelize);                
+                SequelizeMultiTenantModule.connections.set(connectionKey, sequelize);
                 return sequelize;
             }).pipe(handleRetry(options.retryAttempts, options.retryDelay)),
         );
