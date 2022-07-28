@@ -135,18 +135,22 @@ export class SequelizeMultiTenantModule implements OnApplicationShutdown {
     ): Promise<Sequelize> {
         return lastValueFrom(
             defer(async () => {
+                let sequelize:Sequelize = undefined;
                 const connectionKey = options?.database || DEFAULT_CONNECTION_NAME;
+
                 const existingConnection = SequelizeMultiTenantModule.connections.get(connectionKey);
                 if (existingConnection) {
                     try {
                         await existingConnection.authenticate();
-                        return existingConnection;
+                        sequelize = existingConnection;
                     } catch (e) {
                         SequelizeMultiTenantModule.connections.delete(connectionKey);
                         await existingConnection.close();
+                        sequelize =options?.uri ? new Sequelize(options.uri, options) : new Sequelize(options);
                     }
+                }else{
+                    sequelize =options?.uri ? new Sequelize(options.uri, options) : new Sequelize(options);
                 }
-                const sequelize = options?.uri ? new Sequelize(options.uri, options) : new Sequelize(options);
 
                 if (!options.autoLoadModels) {
                     return sequelize;
@@ -155,7 +159,7 @@ export class SequelizeMultiTenantModule implements OnApplicationShutdown {
                 const connectionToken = options.name || DEFAULT_CONNECTION_NAME;
                 const models = EntitiesMetadataStorage.getEntitiesByConnection(connectionToken);
                 sequelize.addModels(models as any);
-
+                //some change
                 await sequelize.authenticate();
 
                 if (typeof options.synchronize === 'undefined' || options.synchronize) {
@@ -163,7 +167,7 @@ export class SequelizeMultiTenantModule implements OnApplicationShutdown {
                 }
                 SequelizeMultiTenantModule.connections.set(connectionKey, sequelize);
                 return sequelize;
-            }).pipe(handleRetry(options.retryAttempts, options.retryDelay)),
+            }).pipe(handleRetry(options.retryAttempts, options.retryDelay))
         );
     }
 }
